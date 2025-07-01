@@ -1,0 +1,118 @@
+openapi: "3.0.2"
+
+info:
+  title: Template API Documentation
+  description: Manage API endpoints.
+  version: 0.0.1
+
+servers:
+  - url: http://localhost:3000
+
+paths:
+  /gt-right:
+    get:
+      summary: Get GT Right
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
+  /gt-left:
+    get:
+      summary: Get GT Left
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+
+  /system-settings:
+    get:
+      summary: Get current system open/close time settings
+      responses:
+        '200':
+          description: Settings Retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      open_hour:
+                        type: integer
+                      open_minute:
+                        type: integer
+                      open_second:
+                        type: integer
+                      close_hour:
+                        type: integer
+                      close_minute:
+                        type: integer
+                      close_second:
+                        type: integer
+                      status:
+                        type: boolean
+    put:
+      summary: Update system open/close time settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                open_hour:
+                  type: integer
+                open_minute:
+                  type: integer
+                open_second:
+                  type: integer
+                close_hour:
+                  type: integer
+                close_minute:
+                  type: integer
+                close_second:
+                  type: integer
+                status:
+                  type: boolean
+              required:
+                - open_hour
+                - open_minute
+                - open_second
+                - close_hour
+                - close_minute
+                - close_second
+                - status
+      responses:
+        '200':
+          description: Update Success Response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
