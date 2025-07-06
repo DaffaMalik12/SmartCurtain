@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { io } from 'socket.io-client';
+
+const API_BASE_URL = "http://localhost:3000/api";
+const SOCKET_URL = "http://localhost:3000";
+
+const socket = io(SOCKET_URL);
 
 const App = () => {
   const [curtainStatus, setCurtainStatus] = useState({
@@ -8,72 +14,76 @@ const App = () => {
     closeTime: '18:00'
   });
 
-  // Simulasi API call untuk mendapatkan status tirai
   const fetchCurtainStatus = async () => {
     try {
-      // Ganti dengan endpoint API yang sebenarnya
-      // const response = await fetch('http://localhost:5173/api/curtain/status');
-      // const data = await response.json();
-      // setCurtainStatus(data);
-      
-      // Simulasi data untuk demo
-      console.log('Fetching curtain status...');
+      const response = await fetch(`${API_BASE_URL}/status`);
+      const data = await response.json();
+
+      setCurtainStatus({
+        isOpen: data.status === 'terbuka' || data.status === 'membuka',
+        openTime: data.jadwal.buka,
+        closeTime: data.jadwal.tutup
+      });
     } catch (error) {
       console.error('Error fetching curtain status:', error);
     }
   };
 
-  // Fungsi untuk toggle tirai
-  const toggleCurtain = async () => {
+  const manualControl = async (direction) => {
     try {
-      // Ganti dengan endpoint API yang sebenarnya
-      // const response = await fetch('http://localhost:5173/api/curtain/toggle', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ action: curtainStatus.isOpen ? 'close' : 'open' })
-      // });
-      
-      // Simulasi toggle untuk demo
-      setCurtainStatus(prev => ({
-        ...prev,
-        isOpen: !prev.isOpen
-      }));
-      
-      console.log('Toggling curtain...');
+      const response = await fetch(`${API_BASE_URL}/control`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: direction })
+      });
+
+      await response.json();
     } catch (error) {
-      console.error('Error toggling curtain:', error);
+      console.error(`Error sending ${direction} command:`, error);
     }
   };
 
-  // Fungsi untuk update jadwal
-  const updateSchedule = async (type, time) => {
+  const toggleCurtain = () => {
+    const direction = curtainStatus.isOpen ? 'left' : 'right';
+    manualControl(direction);
+  };
+
+  const resetToAuto = async () => {
     try {
-      // Ganti dengan endpoint API yang sebenarnya
-      // const response = await fetch('http://localhost:5173/api/curtain/schedule', {
-      //   method: 'PUT',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ type, time })
-      // });
-      
-      // Simulasi update untuk demo
-      setCurtainStatus(prev => ({
-        ...prev,
-        [type === 'open' ? 'openTime' : 'closeTime']: time
-      }));
-      
-      console.log(`Updating ${type} schedule to ${time}...`);
+      const response = await fetch(`${API_BASE_URL}/refresh`, {
+        method: 'POST',
+      });
+
+      await response.json();
     } catch (error) {
-      console.error('Error updating schedule:', error);
+      console.error('Error resetting to auto:', error);
     }
+  };
+
+  const updateSchedule = (type, value) => {
+    setCurtainStatus(prev => ({
+      ...prev,
+      openTime: type === 'open' ? value : prev.openTime,
+      closeTime: type === 'close' ? value : prev.closeTime
+    }));
+
+    // Jika ingin update ke backend juga, bisa tambahkan fetch di sini
   };
 
   useEffect(() => {
     fetchCurtainStatus();
-    
-    // Polling untuk update status setiap 30 detik
-    const interval = setInterval(fetchCurtainStatus, 30000);
-    
-    return () => clearInterval(interval);
+
+    socket.on("status-update", (data) => {
+      setCurtainStatus({
+        isOpen: data.status === 'terbuka' || data.status === 'membuka',
+        openTime: data.jadwal.buka,
+        closeTime: data.jadwal.tutup
+      });
+    });
+
+    return () => {
+      socket.off("status-update");
+    };
   }, []);
 
   return (
@@ -91,11 +101,11 @@ const App = () => {
           {/* Status Tirai */}
           <div className="text-center mb-4 sm:mb-6">
             <h2 className="text-gray-700 text-base sm:text-lg md:text-xl font-semibold mb-3 sm:mb-4">Status Tirai</h2>
-            <button 
+            <button
               onClick={toggleCurtain}
               className={`px-6 sm:px-8 py-2 sm:py-3 rounded-full font-medium transition-all duration-300 text-sm sm:text-base ${
-                curtainStatus.isOpen 
-                  ? 'bg-green-100 text-green-700 border-2 border-green-300' 
+                curtainStatus.isOpen
+                  ? 'bg-green-100 text-green-700 border-2 border-green-300'
                   : 'bg-gray-100 text-gray-700 border-2 border-gray-300'
               }`}
             >
@@ -108,7 +118,7 @@ const App = () => {
             <h3 className="text-gray-700 text-base sm:text-lg md:text-xl font-semibold mb-3 sm:mb-4 text-center">
               Jadwal Otomatis
             </h3>
-            
+
             {/* Jadwal Buka */}
             <div className="mb-3">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4 gap-2 sm:gap-0">
@@ -144,21 +154,21 @@ const App = () => {
 
           {/* Control Buttons */}
           <div className="flex items-center justify-center gap-2 sm:gap-4 mb-4 sm:mb-6">
-            <button 
+            <button
               onClick={() => console.log('Previous action')}
               className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-800 text-white rounded-lg flex items-center justify-center hover:bg-gray-700 transition-colors"
             >
               <ChevronLeft size={16} className="sm:w-5 sm:h-5" />
             </button>
-            
-            <button 
+
+            <button
               onClick={toggleCurtain}
               className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm sm:text-base"
             >
               Tutup Tirai
             </button>
-            
-            <button 
+
+            <button
               onClick={() => console.log('Next action')}
               className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-800 text-white rounded-lg flex items-center justify-center hover:bg-gray-700 transition-colors"
             >
@@ -167,13 +177,12 @@ const App = () => {
           </div>
 
           {/* Refresh Button */}
-          <div className="text-center">
+          <div className="text-center mt-4">
             <button
-              onClick={fetchCurtainStatus}
-              className="text-gray-500 hover:text-gray-700 transition-colors p-2"
-              title="Refresh status"
+              onClick={resetToAuto}
+              className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors text-sm"
             >
-              <RotateCcw size={18} className="sm:w-5 sm:h-5" />
+              Reset ke Mode Otomatis
             </button>
           </div>
         </div>
